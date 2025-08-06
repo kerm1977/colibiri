@@ -503,7 +503,7 @@
                 this.lastHighlightColor = '#FFFF00';
                 this.buildEditor();
                 this.setupEventListeners();
-                this.updateWordCount();
+                this.updateStatusBar();
             }
 
             buildEditor() {
@@ -594,6 +594,8 @@
                     <span>Palabras: <span id="word-count">0</span></span>
                     <span class="colibri-divider"></span>
                     <span>Caracteres: <span id="char-count">0</span></span>
+                    <span class="colibri-divider"></span>
+                    <span>Interlineado: <span id="line-height-indicator">1.7</span></span>
                 `;
 
                 this.modalContainer = document.createElement('div');
@@ -622,7 +624,7 @@
 
                 const updateAll = () => {
                     this.updateToolbarState();
-                    this.updateWordCount();
+                    this.updateStatusBar();
                 };
                 ['focus', 'input', 'selectionchange', 'keyup'].forEach(event => this.editor.addEventListener(event, updateAll));
                 this.editor.addEventListener('click', e => this.handleEditorClick(e));
@@ -894,12 +896,7 @@
                 this.editor.focus();
                 this.restoreSelection();
 
-                // **NUEVA LÓGICA DE FORMATO FLEXIBLE**
-                if (command === 'formatBlock' || command === 'fontName' || command === 'fontSize') {
-                    document.execCommand(command, false, value);
-                    // Forzar actualización visual del editor
-                    this.editor.normalize();
-                } else if (command === 'backColor' && value === null) {
+                if (command === 'backColor' && value === null) {
                     document.execCommand('hiliteColor', false, this.lastHighlightColor);
                 } else {
                     document.execCommand(command, false, value);
@@ -939,7 +936,7 @@
                     this.editor.style.display = 'block';
                     this.editor.focus();
                 }
-                this.updateWordCount();
+                this.updateStatusBar();
             }
 
             updateToolbarState() {
@@ -973,13 +970,29 @@
                 }
             }
             
-            updateWordCount() {
+            updateStatusBar() {
+                // Actualizar contador de palabras y caracteres
                 const text = this.editor.innerText || '';
                 const charCount = text.length;
                 const wordCount = text.trim().split(/\s+/).filter(item => item).length;
-
                 this.statusBar.querySelector('#char-count').textContent = charCount;
                 this.statusBar.querySelector('#word-count').textContent = wordCount;
+
+                // Actualizar indicador de interlineado
+                const selection = window.getSelection();
+                let lineHeight = '1.7'; // Default
+                if (selection.rangeCount > 0) {
+                    let parentEl = selection.getRangeAt(0).commonAncestorContainer;
+                    if (parentEl.nodeType !== 1) parentEl = parentEl.parentNode;
+                    if (parentEl) {
+                        const style = window.getComputedStyle(parentEl);
+                        const lh = parseFloat(style.lineHeight) / parseFloat(style.fontSize);
+                        if (!isNaN(lh)) {
+                            lineHeight = lh.toFixed(1);
+                        }
+                    }
+                }
+                this.statusBar.querySelector('#line-height-indicator').textContent = lineHeight;
             }
 
             getContent() {

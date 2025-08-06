@@ -1,0 +1,8 @@
+Falta corregir e implementar
+1. Poder borrar la tabla
+2. Colocar color a las fuentes
+3. Parrafo y titulos no trabajan correctamente
+4. Tamaño de fuente no trabaja correctamente
+5. Implementar un checklist
+6. Implementar un botón para borrar la línea ingresada
+
