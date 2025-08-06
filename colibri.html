@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editor Colibrí (Versión de Depuración)</title>
+    
+    <!-- Font Awesome para los iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- Google Fonts para tipografías personalizadas (incluyendo Ronda) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Arial&family=Georgia&family=Ronda&family=Times+New+Roman&display=swap" rel="stylesheet">
+
+    <!-- Librerías para exportación PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <!-- CSS Integrado -->
+    <style>
+        /* Estilos Generales */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f7f9;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+
+        /* Contenedor de una instancia del editor */
+        .colibri-container-instance {
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.07);
+            border: 1px solid #e0e7ee;
+            overflow: hidden;
+            position: relative; /* Necesario para los modales */
+        }
+
+        /* Barra de Herramientas */
+        .colibri-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 5px;
+            padding: 8px 10px;
+            background: #ffffff;
+            border-bottom: 1px solid #e0e7ee;
+        }
+
+        .colibri-divider {
+            width: 1px;
+            height: 24px;
+            background-color: #e0e7ee;
+            margin: 0 5px;
+        }
+
+        .colibri-btn {
+            background-color: transparent;
+            border: 1px solid transparent;
+            border-radius: 6px;
+            cursor: pointer;
+            height: 36px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s ease, color 0.2s ease;
+            color: #5f6e85;
+        }
+
+        .colibri-btn i {
+            font-size: 17px;
+            line-height: 1;
+        }
+
+        .colibri-btn {
+            width: 36px;
+        }
+
+        .colibri-btn:hover {
+            background-color: #f0f5fa;
+            color: #2e86de;
+        }
+
+        .colibri-btn.active {
+            background-color: #eaf5ff;
+            color: #1e6fbf;
+        }
+
+        .colibri-color-label {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .colibri-color-label:hover {
+            background-color: #f0f5fa;
+        }
+        .colibri-color-label i {
+            color: #5f6e85;
+            transition: color 0.2s ease;
+        }
+        .colibri-color-label:hover i {
+            color: #2e86de;
+        }
+
+        .colibri-color-picker {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+        
+        .colibri-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .colibri-dropdown-toggle {
+            background-color: #f8f9fa;
+            border: 1px solid #e0e7ee;
+            border-radius: 6px;
+            cursor: pointer;
+            height: 36px;
+            padding: 0 15px;
+            color: #34495e;
+            font-size: 14px;
+            font-weight: 500;
+            min-width: 120px;
+            text-align: left;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .colibri-dropdown-toggle::after {
+            content: '\f078'; /* Icono de flecha hacia abajo de Font Awesome */
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        .colibri-dropdown-toggle:hover {
+            border-color: #b8c6d6;
+            background-color: #fdfdfd;
+        }
+
+        .colibri-dropdown-menu {
+            display: none; /* Oculto por defecto */
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background-color: #fff;
+            border: 1px solid #e0e7ee;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            z-index: 1001;
+            min-width: 180px;
+            padding: 5px 0;
+            margin-top: 5px;
+        }
+        .colibri-dropdown-menu.show {
+            display: block; /* Se muestra con JS */
+        }
+
+        .colibri-dropdown-item {
+            display: block;
+            padding: 8px 15px;
+            color: #34495e;
+            text-decoration: none;
+            white-space: nowrap;
+            cursor: pointer;
+        }
+        .colibri-dropdown-item:hover {
+            background-color: #f0f5fa;
+            color: #2e86de;
+        }
+
+        .colibri-editor-area, .colibri-source-area {
+            min-height: 300px;
+            border: none;
+            padding: 25px;
+            font-size: 17px;
+            line-height: 1.7;
+            background-color: #fff;
+            outline: none;
+            resize: vertical;
+            color: #2d3436;
+        }
+        
+        .colibri-editor-area img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .colibri-source-area {
+            width: calc(100% - 50px);
+            font-family: "SF Mono", "Fira Code", "Courier New", monospace;
+            font-size: 15px;
+            color: #34495e;
+            background-color: #f8f9fa;
+        }
+        
+        .image-wrapper {
+            position: relative;
+            display: inline-block;
+            max-width: 100%; 
+        }
+        .image-wrapper img {
+            display: block;
+            max-width: 100%;
+        }
+        .image-wrapper.selected img {
+            outline: 3px solid #2e86de;
+            outline-offset: 2px;
+        }
+        .resize-handle {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #2e86de;
+            border: 1px solid #fff;
+            border-radius: 50%;
+            box-shadow: 0 0 5px rgba(0,0,0,0.3);
+            z-index: 10;
+        }
+        .resize-handle.tl { top: -5px; left: -5px; cursor: nwse-resize; }
+        .resize-handle.tr { top: -5px; right: -5px; cursor: nesw-resize; }
+        .resize-handle.bl { bottom: -5px; left: -5px; cursor: nesw-resize; }
+        .resize-handle.br { bottom: -5px; right: -5px; cursor: nwse-resize; }
+
+        .colibri-editor-area h1,
+        .colibri-editor-area h2,
+        .colibri-editor-area h3,
+        .colibri-editor-area h4 {
+            margin: 1.4em 0 0.7em 0;
+            font-weight: 700;
+            line-height: 1.3;
+            color: #2c3e50;
+        }
+        .colibri-editor-area h1 { font-size: 2.2em; }
+        .colibri-editor-area h2 { font-size: 1.8em; }
+        .colibri-editor-area h3 { font-size: 1.5em; }
+        .colibri-editor-area h4 { font-size: 1.25em; }
+
+        .colibri-editor-area blockquote {
+            border-left: 3px solid #a9b8c9;
+            margin: 1.5em 0;
+            padding: 10px 20px;
+            color: #5f6e85;
+            font-style: italic;
+            background-color: #f8f9fa;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .colibri-editor-area ul, .colibri-editor-area ol {
+            padding-left: 2em;
+            margin-bottom: 1em;
+        }
+
+        .colibri-editor-area a {
+            color: #2e86de;
+            text-decoration: none;
+            border-bottom: 2px solid rgba(46, 134, 222, 0.2);
+            transition: all 0.2s ease;
+        }
+        .colibri-editor-area a:hover {
+            background-color: rgba(46, 134, 222, 0.1);
+            border-bottom-color: #2e86de;
+        }
+        
+        .colibri-editor-area table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1em 0;
+        }
+        .colibri-editor-area th, .colibri-editor-area td {
+            border: 1px solid #d1d9e6;
+            padding: 8px 12px;
+            text-align: left;
+        }
+        .colibri-editor-area th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+        }
+        .colibri-editor-area hr.page-break {
+            border: 0;
+            border-top: 2px dashed #a9b8c9;
+            margin: 2em 0;
+        }
+        .colibri-editor-area hr:not(.page-break) {
+            border: 0;
+            border-top: 1px solid #d1d9e6;
+            margin: 2em 0;
+        }
+
+        .colibri-statusbar {
+            display: flex;
+            gap: 15px;
+            padding: 8px 25px;
+            background-color: #f8f9fa;
+            border-top: 1px solid #e0e7ee;
+            font-size: 13px;
+            color: #5f6e85;
+            user-select: none;
+        }
+        .colibri-statusbar .colibri-divider {
+            width: 1px;
+            height: 16px;
+            background-color: #e0e7ee;
+            margin: 0;
+            align-self: center;
+        }
+
+        /* --- ESTILOS PARA MODALES --- */
+        .colibri-modal-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(10, 20, 30, 0.5);
+            backdrop-filter: blur(4px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .colibri-modal {
+            background-color: #fff;
+            padding: 0;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            width: 90%;
+            max-width: 450px;
+            animation: slideIn 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            overflow: hidden;
+        }
+
+        .colibri-modal-header {
+            padding: 20px 25px;
+            border-bottom: 1px solid #e0e7ee;
+        }
+
+        .colibri-modal-header h3 {
+            margin: 0;
+            font-size: 20px;
+            color: #2c3e50;
+        }
+        
+        .colibri-modal-body {
+            padding: 25px;
+        }
+
+        .colibri-modal-body p {
+            margin: 0 0 20px 0;
+            color: #5f6e85;
+            font-size: 16px;
+        }
+
+        .colibri-modal input[type="text"], .colibri-modal input[type="number"], .colibri-modal input[type="file"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #d1d9e6;
+            border-radius: 6px;
+            font-size: 16px;
+            box-sizing: border-box;
+            margin-bottom: 20px;
+        }
+        .colibri-modal input:focus {
+            outline: none;
+            border-color: #2e86de;
+            box-shadow: 0 0 0 3px rgba(46, 134, 222, 0.15);
+        }
+
+        .colibri-modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            background-color: #f8f9fa;
+            padding: 15px 25px;
+            border-top: 1px solid #e0e7ee;
+        }
+
+        .colibri-modal-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .colibri-modal-btn.primary {
+            background-color: #2e86de;
+            color: #fff;
+        }
+        .colibri-modal-btn.primary:hover {
+            background-color: #1e6fbf;
+        }
+
+        .colibri-modal-btn {
+            background-color: #e0e7ee;
+            color: #5f6e85;
+        }
+        .colibri-modal-btn:hover {
+            background-color: #d1d9e6;
+        }
+        
+        .colibri-tabs {
+            display: flex;
+            border-bottom: 1px solid #e0e7ee;
+        }
+        .colibri-tab {
+            padding: 12px 20px;
+            cursor: pointer;
+            font-weight: 600;
+            color: #5f6e85;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -1px;
+        }
+        .colibri-tab.active {
+            color: #2e86de;
+            border-bottom-color: #2e86de;
+        }
+        .colibri-tab-content {
+            display: none;
+        }
+        .colibri-tab-content.active {
+            display: block;
+        }
+        .colibri-drop-zone {
+            border: 2px dashed #d1d9e6;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            color: #8a9ab0;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .colibri-drop-zone.dragover {
+            border-color: #2e86de;
+            background-color: #f0f5fa;
+            color: #2e86de;
+        }
+        .colibri-drop-zone i {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+        .colibri-drop-zone input[type="file"] {
+            display: none;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(-30px) scale(0.95); opacity: 0; }
+            to { transform: translateY(0) scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Editor Colibrí</h1>
+    <p>Esta es una versión autocontenida para depuración. Todo el CSS y JS están en este archivo.</p>
+    
+    <!-- Contenedor donde se inicializará el editor -->
+    <div id="editor-container"></div>
+
+    <!-- JavaScript Integrado -->
+    <script>
+        /**
+         * Colibri WYSIWYG Editor
+         * @author Gemini
+         * @version 3.2.0 (con formato flexible y exportación PDF/TXT)
+         */
+        class ColibriEditor {
+            constructor(selector) {
+                this.container = document.querySelector(selector);
+                if (!this.container) {
+                    console.error(`ColibriEditor: No se encontró el elemento con el selector "${selector}".`);
+                    return;
+                }
+                this.sourceMode = false;
+                this.savedSelection = null; 
+                this.lastHighlightColor = '#FFFF00';
+                this.buildEditor();
+                this.setupEventListeners();
+                this.updateWordCount();
+            }
+
+            buildEditor() {
+                this.container.classList.add('colibri-container-instance');
+                this.toolbar = document.createElement('div');
+                this.toolbar.className = 'colibri-toolbar';
+                this.toolbar.innerHTML = `
+                    <div class="colibri-dropdown" data-command="export">
+                        <button type="button" class="colibri-dropdown-toggle" title="Exportar Documento">Exportar</button>
+                        <div class="colibri-dropdown-menu">
+                            <a class="colibri-dropdown-item" data-value="pdf">Guardar como PDF</a>
+                            <a class="colibri-dropdown-item" data-value="txt">Guardar como TXT</a>
+                        </div>
+                    </div>
+                    <span class="colibri-divider"></span>
+                    <button class="colibri-btn" data-command="undo" title="Deshacer"><i class="fas fa-undo"></i></button>
+                    <button class="colibri-btn" data-command="redo" title="Rehacer"><i class="fas fa-redo"></i></button>
+                    <button class="colibri-btn" data-command="removeFormat" title="Limpiar Formato"><i class="fas fa-eraser"></i></button>
+                    <span class="colibri-divider"></span>
+                    <div class="colibri-dropdown" data-command="formatBlock">
+                        <button type="button" class="colibri-dropdown-toggle" title="Formato de Párrafo">Párrafo</button>
+                        <div class="colibri-dropdown-menu">
+                            <a class="colibri-dropdown-item" data-value="p">Párrafo</a>
+                            <a class="colibri-dropdown-item" data-value="h1" style="font-size: 2em; font-weight: bold;">Título 1</a>
+                            <a class="colibri-dropdown-item" data-value="h2" style="font-size: 1.75em; font-weight: bold;">Título 2</a>
+                            <a class="colibri-dropdown-item" data-value="h3" style="font-size: 1.5em; font-weight: bold;">Título 3</a>
+                            <a class="colibri-dropdown-item" data-value="blockquote">Cita</a>
+                        </div>
+                    </div>
+                    <div class="colibri-dropdown" data-command="fontName">
+                        <button type="button" class="colibri-dropdown-toggle" title="Tipografía">Tipografía</button>
+                        <div class="colibri-dropdown-menu">
+                            <a class="colibri-dropdown-item" data-value="Arial" style="font-family: Arial, sans-serif;">Arial</a>
+                            <a class="colibri-dropdown-item" data-value="Georgia" style="font-family: Georgia, serif;">Georgia</a>
+                            <a class="colibri-dropdown-item" data-value='Ronda' style="font-family: 'Ronda', sans-serif;">Ronda</a>
+                            <a class="colibri-dropdown-item" data-value='Times New Roman' style="font-family: 'Times New Roman', serif;">Times New Roman</a>
+                        </div>
+                    </div>
+                    <div class="colibri-dropdown" data-command="fontSize">
+                        <button type="button" class="colibri-dropdown-toggle" title="Tamaño de Fuente">Normal</button>
+                        <div class="colibri-dropdown-menu">
+                            <a class="colibri-dropdown-item" data-value="1"><font size="1">Muy Pequeña</font></a>
+                            <a class="colibri-dropdown-item" data-value="2"><font size="2">Pequeña</font></a>
+                            <a class="colibri-dropdown-item" data-value="3"><font size="3">Normal</font></a>
+                            <a class="colibri-dropdown-item" data-value="4"><font size="4">Mediana</font></a>
+                            <a class="colibri-dropdown-item" data-value="5"><font size="5">Grande</font></a>
+                            <a class="colibri-dropdown-item" data-value="6"><font size="6">Muy Grande</font></a>
+                            <a class="colibri-dropdown-item" data-value="7"><font size="7">Máxima</font></a>
+                        </div>
+                    </div>
+                    <span class="colibri-divider"></span>
+                    <button class="colibri-btn" data-command="bold" title="Negrita"><i class="fas fa-bold"></i></button>
+                    <button class="colibri-btn" data-command="italic" title="Cursiva"><i class="fas fa-italic"></i></button>
+                    <button class="colibri-btn" data-command="underline" title="Subrayado"><i class="fas fa-underline"></i></button>
+                    <label class="colibri-color-label" title="Color de Fuente"><i class="fas fa-font"></i><input type="color" class="colibri-color-picker" data-command="foreColor"></label>
+                    <label class="colibri-color-label" title="Color de Resaltado"><i class="fas fa-highlighter"></i><input type="color" class="colibri-color-picker" data-command="backColor"></label>
+                    <span class="colibri-divider"></span>
+                    <button class="colibri-btn" data-command="justifyLeft" title="Alinear a la Izquierda"><i class="fas fa-align-left"></i></button>
+                    <button class="colibri-btn" data-command="justifyCenter" title="Centrar"><i class="fas fa-align-center"></i></button>
+                    <button class="colibri-btn" data-command="justifyRight" title="Alinear a la Derecha"><i class="fas fa-align-right"></i></button>
+                    <button class="colibri-btn" data-command="decreaseLineHeight" title="Disminuir Interlineado"><i class="fas fa-arrow-down"></i></button>
+                    <button class="colibri-btn" data-command="increaseLineHeight" title="Aumentar Interlineado"><i class="fas fa-arrow-up"></i></button>
+                    <span class="colibri-divider"></span>
+                    <button class="colibri-btn" data-command="insertUnorderedList" title="Lista con Viñetas"><i class="fas fa-list-ul"></i></button>
+                    <button class="colibri-btn" data-command="insertOrderedList" title="Lista Numerada"><i class="fas fa-list-ol"></i></button>
+                    <span class="colibri-divider"></span>
+                    <button class="colibri-btn" data-command="createLink" title="Insertar Enlace"><i class="fas fa-link"></i></button>
+                    <button class="colibri-btn" data-command="insertImage" title="Insertar Imagen"><i class="fas fa-image"></i></button>
+                    <button class="colibri-btn" data-command="insertTable" title="Insertar Tabla"><i class="fas fa-table"></i></button>
+                    <button class="colibri-btn" data-command="insertHorizontalRule" title="Insertar Línea"><i class="fas fa-minus"></i></button>
+                    <button class="colibri-btn" data-command="insertPageBreak" title="Salto de Página"><i class="fas fa-file-alt"></i></button>
+                    <span class="colibri-divider"></span>
+                    <button class="colibri-btn" data-command="toggleSource" title="Ver Código Fuente"><i class="fas fa-code"></i></button>
+                `;
+
+                this.editor = document.createElement('div');
+                this.editor.className = 'colibri-editor-area';
+                this.editor.contentEditable = true;
+                this.editor.innerHTML = '<p>Empieza a escribir aquí...</p>';
+
+                this.sourceView = document.createElement('textarea');
+                this.sourceView.className = 'colibri-source-area';
+                this.sourceView.style.display = 'none';
+                
+                this.statusBar = document.createElement('div');
+                this.statusBar.className = 'colibri-statusbar';
+                this.statusBar.innerHTML = `
+                    <span>Palabras: <span id="word-count">0</span></span>
+                    <span class="colibri-divider"></span>
+                    <span>Caracteres: <span id="char-count">0</span></span>
+                `;
+
+                this.modalContainer = document.createElement('div');
+                this.modalContainer.innerHTML = `
+                    <div class="colibri-modal-overlay" id="link-modal-overlay"><div class="colibri-modal"><div class="colibri-modal-header"><h3>Insertar Enlace</h3></div><div class="colibri-modal-body"><input type="text" id="link-url-input" placeholder="https://ejemplo.com"></div><div class="colibri-modal-actions"><button class="colibri-modal-btn" id="link-cancel-btn">Cancelar</button><button class="colibri-modal-btn primary" id="link-ok-btn">Aceptar</button></div></div></div>
+                    <div class="colibri-modal-overlay" id="image-modal-overlay"><div class="colibri-modal"><div class="colibri-tabs"><div class="colibri-tab active" data-tab="url">Desde URL</div><div class="colibri-tab" data-tab="upload">Subir Archivo</div></div><div class="colibri-modal-body"><div class="colibri-tab-content active" id="image-tab-url"><p>Ingresa la dirección web de la imagen.</p><input type="text" id="image-url-input" placeholder="https://ejemplo.com/imagen.jpg"></div><div class="colibri-tab-content" id="image-tab-upload"><label class="colibri-drop-zone" id="image-drop-zone"><i class="fas fa-cloud-upload-alt"></i><div>Arrastra una imagen aquí o haz clic para seleccionar</div><input type="file" id="image-file-input" accept="image/*"></label></div></div><div class="colibri-modal-actions"><button class="colibri-modal-btn" id="image-cancel-btn">Cancelar</button><button class="colibri-modal-btn primary" id="image-ok-btn">Insertar</button></div></div></div>
+                    <div class="colibri-modal-overlay" id="table-modal-overlay"><div class="colibri-modal"><div class="colibri-modal-header"><h3>Insertar Tabla</h3></div><div class="colibri-modal-body"><p>Define el tamaño de la tabla.</p><label>Filas:</label><input type="number" id="table-rows-input" value="3" min="1"><label>Columnas:</label><input type="number" id="table-cols-input" value="3" min="1"></div><div class="colibri-modal-actions"><button class="colibri-modal-btn" id="table-cancel-btn">Cancelar</button><button class="colibri-modal-btn primary" id="table-ok-btn">Aceptar</button></div></div></div>
+                    <div class="colibri-modal-overlay" id="alert-modal-overlay"><div class="colibri-modal"><div class="colibri-modal-header"><h3 id="alert-modal-title">Aviso</h3></div><div class="colibri-modal-body"><p id="alert-modal-message"></p></div><div class="colibri-modal-actions"><button class="colibri-modal-btn primary" id="alert-ok-btn">Aceptar</button></div></div></div>
+                `;
+
+                this.container.innerHTML = '';
+                this.container.appendChild(this.toolbar);
+                this.container.appendChild(this.editor);
+                this.container.appendChild(this.sourceView);
+                this.container.appendChild(this.statusBar);
+                this.container.appendChild(this.modalContainer);
+            }
+
+            setupEventListeners() {
+                this.toolbar.addEventListener('click', e => this.handleToolbarClick(e));
+                document.addEventListener('click', e => {
+                    if (!this.toolbar.contains(e.target)) {
+                        this.closeAllDropdowns();
+                    }
+                });
+
+                const updateAll = () => {
+                    this.updateToolbarState();
+                    this.updateWordCount();
+                };
+                ['focus', 'input', 'selectionchange', 'keyup'].forEach(event => this.editor.addEventListener(event, updateAll));
+                this.editor.addEventListener('click', e => this.handleEditorClick(e));
+
+                this.modalContainer.querySelector('#link-ok-btn').addEventListener('click', () => this.applyLink());
+                this.modalContainer.querySelector('#link-cancel-btn').addEventListener('click', () => this.hideModal('link-modal-overlay'));
+                this.modalContainer.querySelector('#alert-ok-btn').addEventListener('click', () => this.hideModal('alert-modal-overlay'));
+                this.modalContainer.querySelector('#image-ok-btn').addEventListener('click', () => this.applyImage());
+                this.modalContainer.querySelector('#image-cancel-btn').addEventListener('click', () => this.hideModal('image-modal-overlay'));
+                this.modalContainer.querySelector('#table-ok-btn').addEventListener('click', () => this.applyTable());
+                this.modalContainer.querySelector('#table-cancel-btn').addEventListener('click', () => this.hideModal('table-modal-overlay'));
+                
+                const imageModal = this.modalContainer.querySelector('#image-modal-overlay');
+                imageModal.querySelectorAll('.colibri-tab').forEach(tab => {
+                    tab.addEventListener('click', () => {
+                        imageModal.querySelector('.colibri-tab.active').classList.remove('active');
+                        imageModal.querySelector('.colibri-tab-content.active').classList.remove('active');
+                        tab.classList.add('active');
+                        imageModal.querySelector(`#image-tab-${tab.dataset.tab}`).classList.add('active');
+                    });
+                });
+                const dropZone = imageModal.querySelector('#image-drop-zone');
+                const fileInput = imageModal.querySelector('#image-file-input');
+                dropZone.addEventListener('click', () => fileInput.click());
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => dropZone.addEventListener(eventName, e => { e.preventDefault(); e.stopPropagation(); }, false));
+                ['dragenter', 'dragover'].forEach(eventName => dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover')));
+                ['dragleave', 'drop'].forEach(eventName => dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover')));
+                dropZone.addEventListener('drop', e => { if (e.dataTransfer.files[0]) this.handleImageUpload(e.dataTransfer.files[0]); });
+                fileInput.addEventListener('change', e => { if (e.target.files[0]) this.handleImageUpload(e.target.files[0]); });
+            }
+            
+            handleEditorClick(e) {
+                const target = e.target;
+                if (target.tagName === 'IMG') {
+                    this.selectImage(target);
+                } else if (!target.closest('.image-wrapper')) {
+                    this.deselectAllImages();
+                }
+            }
+
+            selectImage(img) {
+                if (img.parentElement.classList.contains('image-wrapper')) return;
+                this.deselectAllImages();
+                const wrapper = document.createElement('span');
+                wrapper.className = 'image-wrapper selected';
+                wrapper.contentEditable = false;
+                wrapper.style.width = img.style.width || `${img.offsetWidth}px`;
+                img.parentNode.insertBefore(wrapper, img);
+                wrapper.appendChild(img);
+                ['tl', 'tr', 'bl', 'br'].forEach(pos => {
+                    const handle = document.createElement('div');
+                    handle.className = `resize-handle ${pos}`;
+                    wrapper.appendChild(handle);
+                    this.addResizeListener(handle, wrapper);
+                });
+            }
+
+            deselectAllImages() {
+                this.editor.querySelectorAll('.image-wrapper').forEach(wrapper => {
+                    const img = wrapper.querySelector('img');
+                    if (img) {
+                        img.style.width = wrapper.style.width;
+                        wrapper.parentNode.insertBefore(img, wrapper);
+                    }
+                    wrapper.remove();
+                });
+            }
+
+            addResizeListener(handle, wrapper) {
+                let startX, startWidth;
+                handle.addEventListener('mousedown', e => {
+                    e.preventDefault(); e.stopPropagation();
+                    startX = e.clientX;
+                    startWidth = wrapper.offsetWidth;
+                    const doDrag = (moveEvent) => {
+                        moveEvent.preventDefault();
+                        wrapper.style.width = `${startWidth + (moveEvent.clientX - startX)}px`;
+                    };
+                    const stopDrag = () => {
+                        document.removeEventListener('mousemove', doDrag);
+                        document.removeEventListener('mouseup', stopDrag);
+                    };
+                    document.addEventListener('mousemove', doDrag);
+                    document.addEventListener('mouseup', stopDrag);
+                });
+            }
+
+            saveSelection() {
+                const selection = window.getSelection();
+                if (selection.getRangeAt && selection.rangeCount) this.savedSelection = selection.getRangeAt(0);
+                else this.savedSelection = null;
+            }
+
+            restoreSelection() {
+                if (this.savedSelection) {
+                    const selection = window.getSelection();
+                    selection.removeAllRanges();
+                    selection.addRange(this.savedSelection);
+                }
+            }
+
+            handleToolbarClick(e) {
+                e.stopPropagation();
+                
+                const dropdownToggle = e.target.closest('.colibri-dropdown-toggle');
+                const dropdownItem = e.target.closest('.colibri-dropdown-item');
+                const normalButton = e.target.closest('.colibri-btn');
+                const colorPicker = e.target.closest('.colibri-color-picker');
+
+                if (dropdownToggle) {
+                    const menu = dropdownToggle.nextElementSibling;
+                    const isVisible = menu.classList.contains('show');
+                    this.closeAllDropdowns();
+                    if (!isVisible) menu.classList.add('show');
+                    return;
+                }
+
+                if (dropdownItem) {
+                    e.preventDefault();
+                    const dropdown = dropdownItem.closest('.colibri-dropdown');
+                    const command = dropdown.dataset.command;
+                    const value = dropdownItem.dataset.value;
+
+                    if (command === 'export') {
+                        this.handleExport(value);
+                    } else {
+                        this.executeCommand(command, value);
+                    }
+                    this.closeAllDropdowns();
+                    return;
+                }
+                
+                if (colorPicker) {
+                    this.saveSelection();
+                    colorPicker.oninput = () => { // Usar oninput para respuesta instantánea
+                        this.restoreSelection();
+                        this.executeCommand(colorPicker.dataset.command, colorPicker.value);
+                        if (colorPicker.dataset.command === 'backColor') {
+                            this.lastHighlightColor = colorPicker.value;
+                        }
+                    };
+                    return;
+                }
+
+                if (normalButton) {
+                    const command = normalButton.dataset.command;
+                    if (command === 'toggleSource') { this.toggleSourceView(); return; }
+                    if (this.sourceMode) { this.showAlert("Sal del modo de vista de código para usar las herramientas de formato."); return; }
+
+                    this.saveSelection();
+                    const customCommands = {
+                        'createLink': () => this.showModal('link-modal-overlay', '#link-url-input'),
+                        'insertImage': () => this.showModal('image-modal-overlay'),
+                        'insertTable': () => this.showModal('table-modal-overlay'),
+                        'insertPageBreak': () => this.executeCommand('insertHTML', '<hr class="page-break">'),
+                        'increaseLineHeight': () => this.changeLineHeight(0.1),
+                        'decreaseLineHeight': () => this.changeLineHeight(-0.1)
+                    };
+
+                    if (customCommands[command]) {
+                        customCommands[command]();
+                    } else {
+                        this.executeCommand(command, normalButton.value || null);
+                    }
+                }
+            }
+            
+            closeAllDropdowns() {
+                this.toolbar.querySelectorAll('.colibri-dropdown-menu').forEach(menu => {
+                    menu.classList.remove('show');
+                });
+            }
+            
+            showModal(id, focusSelector = null) {
+                this.modalContainer.querySelector(`#${id}`).style.display = 'flex';
+                if (focusSelector) this.modalContainer.querySelector(focusSelector).focus();
+            }
+            
+            hideModal(id) {
+                this.modalContainer.querySelector(`#${id}`).style.display = 'none';
+            }
+            
+            applyLink() {
+                this.restoreSelection();
+                const url = this.modalContainer.querySelector('#link-url-input').value;
+                if (url) this.executeCommand('createLink', url);
+                this.hideModal('link-modal-overlay');
+                this.modalContainer.querySelector('#link-url-input').value = '';
+            }
+            
+            applyImage() {
+                this.restoreSelection();
+                const activeTab = this.modalContainer.querySelector('.colibri-tab.active').dataset.tab;
+                if (activeTab === 'url') {
+                    const url = this.modalContainer.querySelector('#image-url-input').value;
+                    if (url) this.executeCommand('insertImage', url);
+                } else if (activeTab === 'upload') {
+                    const base64Url = this.modalContainer.querySelector('#image-drop-zone').dataset.base64;
+                    if (base64Url) this.executeCommand('insertImage', base64Url);
+                }
+                this.hideModal('image-modal-overlay');
+                this.modalContainer.querySelector('#image-url-input').value = '';
+                const dropZone = this.modalContainer.querySelector('#image-drop-zone');
+                dropZone.innerHTML = '<i class="fas fa-cloud-upload-alt"></i><div>Arrastra una imagen aquí o haz clic para seleccionar</div>';
+                delete dropZone.dataset.base64;
+            }
+
+            applyTable() {
+                this.restoreSelection();
+                const rows = parseInt(this.modalContainer.querySelector('#table-rows-input').value, 10);
+                const cols = parseInt(this.modalContainer.querySelector('#table-cols-input').value, 10);
+                if (rows > 0 && cols > 0) {
+                    let table = '<table><tbody>';
+                    for (let i = 0; i < rows; i++) {
+                        table += '<tr>';
+                        for (let j = 0; j < cols; j++) {
+                            table += '<td><br></td>';
+                        }
+                        table += '</tr>';
+                    }
+                    table += '</tbody></table>';
+                    this.executeCommand('insertHTML', table);
+                }
+                this.hideModal('table-modal-overlay');
+            }
+            
+            changeLineHeight(amount) {
+                this.restoreSelection();
+                const selection = window.getSelection();
+                if (!selection.rangeCount) return;
+
+                let parentEl = selection.getRangeAt(0).commonAncestorContainer;
+                if (parentEl.nodeType !== 1) parentEl = parentEl.parentNode;
+                
+                while(parentEl && !['P', 'DIV', 'H1', 'H2', 'H3', 'LI'].includes(parentEl.tagName)) {
+                    parentEl = parentEl.parentNode;
+                    if (parentEl === this.editor) break;
+                }
+
+                if (parentEl && parentEl !== this.editor) {
+                    const currentLineHeight = parseFloat(window.getComputedStyle(parentEl).lineHeight) / parseFloat(window.getComputedStyle(parentEl).fontSize);
+                    const newLineHeight = (isNaN(currentLineHeight) ? 1.7 : currentLineHeight) + amount;
+                    parentEl.style.lineHeight = newLineHeight.toFixed(1);
+                }
+                this.editor.focus();
+            }
+            
+            handleImageUpload(file) {
+                if (!file.type.startsWith('image/')) {
+                    this.showAlert('Por favor, selecciona un archivo de imagen válido.');
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = e => {
+                    const dropZone = this.modalContainer.querySelector('#image-drop-zone');
+                    dropZone.dataset.base64 = e.target.result;
+                    dropZone.innerHTML = `<img src="${e.target.result}" style="max-width: 100%; max-height: 150px;">`;
+                };
+                reader.readAsDataURL(file);
+            }
+
+            showAlert(message) {
+                this.modalContainer.querySelector('#alert-modal-message').textContent = message;
+                this.showModal('alert-modal-overlay');
+            }
+
+            executeCommand(command, value = null) {
+                if (!command) return;
+                this.editor.focus();
+                this.restoreSelection();
+
+                // **NUEVA LÓGICA DE FORMATO FLEXIBLE**
+                if (command === 'formatBlock' || command === 'fontName' || command === 'fontSize') {
+                    document.execCommand(command, false, value);
+                    // Forzar actualización visual del editor
+                    this.editor.normalize();
+                } else if (command === 'backColor' && value === null) {
+                    document.execCommand('hiliteColor', false, this.lastHighlightColor);
+                } else {
+                    document.execCommand(command, false, value);
+                }
+                this.updateToolbarState();
+            }
+
+            sanitizeHTML(htmlString) {
+                const sanitizer = (str) => {
+                    const temp = document.createElement('div');
+                    temp.textContent = str;
+                    return temp.innerHTML;
+                };
+
+                const forbiddenTags = ['script', 'style', 'object', 'applet'];
+                forbiddenTags.forEach(tag => {
+                    const regex = new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'gi');
+                    htmlString = htmlString.replace(regex, (match) => sanitizer(match));
+                });
+                return htmlString;
+            }
+
+            toggleSourceView() {
+                this.deselectAllImages();
+                this.sourceMode = !this.sourceMode;
+                const toggleBtn = this.toolbar.querySelector('[data-command="toggleSource"]');
+                toggleBtn.classList.toggle('active', this.sourceMode);
+
+                if (this.sourceMode) {
+                    this.sourceView.value = this.editor.innerHTML;
+                    this.editor.style.display = 'none';
+                    this.sourceView.style.display = 'block';
+                    this.sourceView.focus();
+                } else {
+                    this.editor.innerHTML = this.sanitizeHTML(this.sourceView.value);
+                    this.sourceView.style.display = 'none';
+                    this.editor.style.display = 'block';
+                    this.editor.focus();
+                }
+                this.updateWordCount();
+            }
+
+            updateToolbarState() {
+                if (this.sourceMode) return;
+                this.toolbar.querySelectorAll('.colibri-btn').forEach(btn => {
+                    const command = btn.dataset.command;
+                    if (command && document.queryCommandState(command)) {
+                        btn.classList.add('active');
+                    } else {
+                        btn.classList.remove('active');
+                    }
+                });
+                
+                const blockDropdown = this.toolbar.querySelector('.colibri-dropdown[data-command="formatBlock"]');
+                if (blockDropdown) {
+                    const blockValue = document.queryCommandValue('formatBlock').toLowerCase() || 'p';
+                    const activeItem = blockDropdown.querySelector(`.colibri-dropdown-item[data-value="${blockValue}"]`);
+                    blockDropdown.querySelector('.colibri-dropdown-toggle').textContent = activeItem ? activeItem.textContent.trim() : 'Párrafo';
+                }
+                const fontDropdown = this.toolbar.querySelector('.colibri-dropdown[data-command="fontSize"]');
+                if (fontDropdown) {
+                    const sizeValue = document.queryCommandValue('fontSize') || '3';
+                    const activeItem = fontDropdown.querySelector(`.colibri-dropdown-item[data-value="${sizeValue}"]`);
+                    fontDropdown.querySelector('.colibri-dropdown-toggle').textContent = activeItem ? activeItem.textContent.trim() : 'Normal';
+                }
+                const fontNameDropdown = this.toolbar.querySelector('.colibri-dropdown[data-command="fontName"]');
+                if (fontNameDropdown) {
+                    const nameValue = document.queryCommandValue('fontName').replace(/['"]/g, '');
+                    const activeItem = fontNameDropdown.querySelector(`.colibri-dropdown-item[data-value="${nameValue}"]`);
+                    fontNameDropdown.querySelector('.colibri-dropdown-toggle').textContent = activeItem ? activeItem.textContent.trim() : 'Tipografía';
+                }
+            }
+            
+            updateWordCount() {
+                const text = this.editor.innerText || '';
+                const charCount = text.length;
+                const wordCount = text.trim().split(/\s+/).filter(item => item).length;
+
+                this.statusBar.querySelector('#char-count').textContent = charCount;
+                this.statusBar.querySelector('#word-count').textContent = wordCount;
+            }
+
+            getContent() {
+                this.deselectAllImages();
+                return this.sourceMode ? this.sourceView.value : this.editor.innerHTML;
+            }
+            
+            handleExport(format) {
+                if (format === 'pdf') {
+                    this.exportAsPDF();
+                } else if (format === 'txt') {
+                    this.exportAsTxt();
+                }
+            }
+
+            async exportAsPDF() {
+                this.showAlert('Generando PDF... por favor espera.');
+                const { jsPDF } = window.jspdf;
+                
+                const printableArea = this.editor.cloneNode(true);
+                printableArea.style.width = '210mm';
+                printableArea.style.padding = '20mm';
+                printableArea.style.boxSizing = 'border-box';
+                printableArea.style.position = 'absolute';
+                printableArea.style.left = '-9999px';
+                printableArea.style.top = '0';
+                
+                document.body.appendChild(printableArea);
+
+                try {
+                    const canvas = await html2canvas(printableArea, { 
+                        scale: 2,
+                        useCORS: true
+                    });
+                    const imgData = canvas.toDataURL('image/png');
+                    const pdf = new jsPDF({
+                        orientation: 'portrait',
+                        unit: 'px',
+                        format: [canvas.width, canvas.height]
+                    });
+                    pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+                    pdf.save('documento-colibri.pdf');
+                } catch (error) {
+                    console.error("Error al generar PDF:", error);
+                    this.showAlert('Ocurrió un error al generar el PDF.');
+                } finally {
+                    document.body.removeChild(printableArea);
+                    this.hideModal('alert-modal-overlay');
+                }
+            }
+
+            exportAsTxt() {
+                const textContent = this.editor.innerText;
+                const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'documento-colibri.txt';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+        }
+
+        window.ColibriEditor = ColibriEditor;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const miEditor = new ColibriEditor('#editor-container');
+        });
+    </script>
+</body>
+</html>
