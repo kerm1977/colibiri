@@ -65,8 +65,14 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            transition: background-color 0.2s ease, color 0.2s ease;
+            transition: background-color 0.2s ease, color 0.2s ease, opacity 0.2s ease;
             color: #5f6e85;
+        }
+
+        .colibri-btn:disabled {
+            color: #bdc3c7;
+            cursor: not-allowed;
+            background-color: transparent !important;
         }
 
         .colibri-btn i {
@@ -78,7 +84,7 @@
             width: 36px;
         }
 
-        .colibri-btn:hover {
+        .colibri-btn:not(:disabled):hover {
             background-color: #f0f5fa;
             color: #2e86de;
         }
@@ -268,6 +274,31 @@
             padding-left: 2em;
             margin-bottom: 1em;
         }
+
+        /* --- NUEVO: Estilos para Checklist --- */
+        .colibri-editor-area ul.checklist {
+            list-style-type: none;
+            padding-left: 1em;
+        }
+        .colibri-editor-area ul.checklist li {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        .colibri-editor-area ul.checklist li input[type="checkbox"] {
+            margin-right: 10px;
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0; /* Evita que el checkbox se encoja */
+        }
+        .colibri-editor-area ul.checklist li label {
+            flex-grow: 1; /* Permite que la etiqueta ocupe el espacio restante */
+        }
+        .colibri-editor-area ul.checklist li.checked label {
+            text-decoration: line-through;
+            color: #8a9ab0;
+        }
+        /* --- FIN de nuevos estilos --- */
 
         .colibri-editor-area a {
             color: #2e86de;
@@ -489,7 +520,7 @@
         /**
          * Colibri WYSIWYG Editor
          * @author Gemini
-         * @version 3.2.0 (con formato flexible y exportación PDF/TXT)
+         * @version 3.3.0 (con checklist mejorada y justificado)
          */
         class ColibriEditor {
             constructor(selector) {
@@ -564,17 +595,19 @@
                     <button class="colibri-btn" data-command="justifyLeft" title="Alinear a la Izquierda"><i class="fas fa-align-left"></i></button>
                     <button class="colibri-btn" data-command="justifyCenter" title="Centrar"><i class="fas fa-align-center"></i></button>
                     <button class="colibri-btn" data-command="justifyRight" title="Alinear a la Derecha"><i class="fas fa-align-right"></i></button>
+                    <button class="colibri-btn" data-command="justifyFull" title="Justificar"><i class="fas fa-align-justify"></i></button>
                     <button class="colibri-btn" data-command="decreaseLineHeight" title="Disminuir Interlineado"><i class="fas fa-arrow-down"></i></button>
                     <button class="colibri-btn" data-command="increaseLineHeight" title="Aumentar Interlineado"><i class="fas fa-arrow-up"></i></button>
                     <span class="colibri-divider"></span>
                     <button class="colibri-btn" data-command="insertUnorderedList" title="Lista con Viñetas"><i class="fas fa-list-ul"></i></button>
                     <button class="colibri-btn" data-command="insertOrderedList" title="Lista Numerada"><i class="fas fa-list-ol"></i></button>
+                    <button class="colibri-btn" data-command="insertChecklist" title="Lista de Tareas"><i class="fas fa-check-square"></i></button>
                     <span class="colibri-divider"></span>
                     <button class="colibri-btn" data-command="createLink" title="Insertar Enlace"><i class="fas fa-link"></i></button>
                     <button class="colibri-btn" data-command="insertImage" title="Insertar Imagen"><i class="fas fa-image"></i></button>
                     <button class="colibri-btn" data-command="insertTable" title="Insertar Tabla"><i class="fas fa-table"></i></button>
                     <button class="colibri-btn" data-command="insertHorizontalRule" title="Insertar Línea"><i class="fas fa-minus"></i></button>
-                    <button class="colibri-btn" data-command="insertPageBreak" title="Salto de Página"><i class="fas fa-file-alt"></i></button>
+                    <button class="colibri-btn" data-command="deleteElement" title="Borrar Tabla/Línea" disabled><i class="fas fa-trash"></i></button>
                     <span class="colibri-divider"></span>
                     <button class="colibri-btn" data-command="toggleSource" title="Ver Código Fuente"><i class="fas fa-code"></i></button>
                 `;
@@ -628,6 +661,10 @@
                 };
                 ['focus', 'input', 'selectionchange', 'keyup'].forEach(event => this.editor.addEventListener(event, updateAll));
                 this.editor.addEventListener('click', e => this.handleEditorClick(e));
+
+                // **NUEVO: Listeners para Checklist**
+                this.editor.addEventListener('keydown', e => this.handleKeyDown(e));
+                this.editor.addEventListener('change', e => this.handleChecklistToggle(e));
 
                 this.modalContainer.querySelector('#link-ok-btn').addEventListener('click', () => this.applyLink());
                 this.modalContainer.querySelector('#link-cancel-btn').addEventListener('click', () => this.hideModal('link-modal-overlay'));
@@ -759,7 +796,7 @@
                 
                 if (colorPicker) {
                     this.saveSelection();
-                    colorPicker.oninput = () => { // Usar oninput para respuesta instantánea
+                    colorPicker.oninput = () => {
                         this.restoreSelection();
                         this.executeCommand(colorPicker.dataset.command, colorPicker.value);
                         if (colorPicker.dataset.command === 'backColor') {
@@ -781,7 +818,9 @@
                         'insertTable': () => this.showModal('table-modal-overlay'),
                         'insertPageBreak': () => this.executeCommand('insertHTML', '<hr class="page-break">'),
                         'increaseLineHeight': () => this.changeLineHeight(0.1),
-                        'decreaseLineHeight': () => this.changeLineHeight(-0.1)
+                        'decreaseLineHeight': () => this.changeLineHeight(-0.1),
+                        'deleteElement': () => this.deleteSelectedElement(),
+                        'insertChecklist': () => this.insertChecklist()
                     };
 
                     if (customCommands[command]) {
@@ -932,8 +971,8 @@
                     this.sourceView.focus();
                 } else {
                     this.editor.innerHTML = this.sanitizeHTML(this.sourceView.value);
-                    this.sourceView.style.display = 'none';
                     this.editor.style.display = 'block';
+                    this.sourceView.style.display = 'none';
                     this.editor.focus();
                 }
                 this.updateStatusBar();
@@ -950,6 +989,20 @@
                     }
                 });
                 
+                const deleteBtn = this.toolbar.querySelector('[data-command="deleteElement"]');
+                const selection = window.getSelection();
+                if (selection.rangeCount > 0) {
+                    const node = selection.getRangeAt(0).commonAncestorContainer;
+                    const element = node.nodeType === 1 ? node : node.parentNode;
+                    if (element.closest('table') || element.closest('hr')) {
+                        deleteBtn.disabled = false;
+                    } else {
+                        deleteBtn.disabled = true;
+                    }
+                } else {
+                    deleteBtn.disabled = true;
+                }
+
                 const blockDropdown = this.toolbar.querySelector('.colibri-dropdown[data-command="formatBlock"]');
                 if (blockDropdown) {
                     const blockValue = document.queryCommandValue('formatBlock').toLowerCase() || 'p';
@@ -971,24 +1024,25 @@
             }
             
             updateStatusBar() {
-                // Actualizar contador de palabras y caracteres
                 const text = this.editor.innerText || '';
                 const charCount = text.length;
                 const wordCount = text.trim().split(/\s+/).filter(item => item).length;
                 this.statusBar.querySelector('#char-count').textContent = charCount;
                 this.statusBar.querySelector('#word-count').textContent = wordCount;
 
-                // Actualizar indicador de interlineado
                 const selection = window.getSelection();
                 let lineHeight = '1.7'; // Default
                 if (selection.rangeCount > 0) {
                     let parentEl = selection.getRangeAt(0).commonAncestorContainer;
                     if (parentEl.nodeType !== 1) parentEl = parentEl.parentNode;
-                    if (parentEl) {
-                        const style = window.getComputedStyle(parentEl);
-                        const lh = parseFloat(style.lineHeight) / parseFloat(style.fontSize);
-                        if (!isNaN(lh)) {
-                            lineHeight = lh.toFixed(1);
+                    if (parentEl && parentEl.closest) {
+                        const blockEl = parentEl.closest('p, div, h1, h2, h3, li');
+                        if(blockEl) {
+                            const style = window.getComputedStyle(blockEl);
+                            const lh = parseFloat(style.lineHeight) / parseFloat(style.fontSize);
+                            if (!isNaN(lh)) {
+                                lineHeight = lh.toFixed(1);
+                            }
                         }
                     }
                 }
@@ -1055,6 +1109,112 @@
                 a.click();
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
+            }
+
+            deleteSelectedElement() {
+                this.restoreSelection();
+                const selection = window.getSelection();
+                if (selection.rangeCount > 0) {
+                    const node = selection.getRangeAt(0).commonAncestorContainer;
+                    const element = node.nodeType === 1 ? node : node.parentNode;
+                    const table = element.closest('table');
+                    const hr = element.closest('hr');
+                    if (table) {
+                        table.remove();
+                    } else if (hr) {
+                        hr.remove();
+                    }
+                }
+            }
+
+            insertChecklist() {
+                this.restoreSelection();
+                this.executeCommand('insertUnorderedList');
+                const selection = window.getSelection();
+                if (!selection.rangeCount) return;
+                let parentEl = selection.getRangeAt(0).commonAncestorContainer;
+                if (parentEl.nodeType !== 1) parentEl = parentEl.parentNode;
+                const list = parentEl.closest('ul');
+                if (list) {
+                    list.classList.add('checklist');
+                    list.querySelectorAll('li').forEach(li => {
+                        if (!li.querySelector('input[type=checkbox]')) {
+                            const text = li.innerHTML;
+                            li.innerHTML = `<input type="checkbox"><label contenteditable="true">${text}</label>`;
+                        }
+                    });
+                }
+            }
+            
+            handleKeyDown(e) {
+                if (e.key === 'Enter') {
+                    this.handleChecklistEnter(e);
+                } else if (e.key === 'Backspace') {
+                    this.handleChecklistBackspace(e);
+                }
+            }
+
+            handleChecklistEnter(e) {
+                const selection = window.getSelection();
+                if (!selection.rangeCount) return;
+                const node = selection.getRangeAt(0).commonAncestorContainer;
+                const li = node.closest('li');
+
+                if (li && li.parentElement.classList.contains('checklist')) {
+                    e.preventDefault();
+                    const newLi = document.createElement('li');
+                    newLi.innerHTML = '<input type="checkbox"><label contenteditable="true"><br></label>';
+                    
+                    li.parentNode.insertBefore(newLi, li.nextSibling);
+
+                    const range = document.createRange();
+                    const newLabel = newLi.querySelector('label');
+                    range.setStart(newLabel, 0);
+                    range.collapse(true);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                }
+            }
+
+            handleChecklistBackspace(e) {
+                const selection = window.getSelection();
+                if (!selection.rangeCount || !selection.isCollapsed) return;
+
+                const range = selection.getRangeAt(0);
+                const node = range.startContainer;
+                const li = node.closest('li');
+
+                if (li && li.parentElement.classList.contains('checklist')) {
+                    const label = li.querySelector('label');
+                    if (range.startOffset === 0 && (label.textContent === '' || label.innerHTML === '<br>')) {
+                        e.preventDefault();
+                        const ul = li.parentElement;
+                        const p = document.createElement('p');
+                        p.innerHTML = '<br>';
+                        
+                        if (ul.children.length === 1) {
+                            ul.replaceWith(p);
+                        } else {
+                            ul.parentNode.insertBefore(p, ul);
+                            li.remove();
+                        }
+
+                        range.setStart(p, 0);
+                        range.collapse(true);
+                        selection.removeAllRanges();
+                        selection.addRange(range);
+                    }
+                }
+            }
+
+            handleChecklistToggle(e) {
+                const target = e.target;
+                if (target.tagName === 'INPUT' && target.type === 'checkbox') {
+                    const li = target.closest('li');
+                    if (li) {
+                        li.classList.toggle('checked', target.checked);
+                    }
+                }
             }
         }
 

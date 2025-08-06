@@ -5,4 +5,6 @@ Falta corregir e implementar
 4. Tamaño de fuente no trabaja correctamente
 5. Implementar un checklist
 6. Implementar un botón para borrar la línea ingresada
+permitir grabar un audio mp3 wma en caso de otro formato enviar un error grafícamente bonito
+
 
