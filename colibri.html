@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Editor Colibrí (Versión de Depuración)</title>
+    <title>Editor Colibrí (Diseño de Tarjeta)</title>
     
     <!-- Font Awesome para los iconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -21,32 +21,73 @@
     <style>
         /* Estilos Generales */
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #f4f7f9;
-            color: #333;
+            background-color: #f0f2f5; /* Fondo gris claro */
             margin: 0;
             padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+            overflow: hidden;
         }
 
-        /* Contenedor de una instancia del editor */
+        /* Contenedor de una instancia del editor (Ahora es una tarjeta) */
         .colibri-container-instance {
             background-color: #ffffff;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.07);
             border: 1px solid #e0e7ee;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.07);
+            border-radius: 12px;
+            height: 90vh;
+            width: 100%;
+            max-width: 1000px;
+            display: flex;
+            flex-direction: column;
+            position: relative; 
             overflow: hidden;
-            position: relative; /* Necesario para los modales */
         }
 
-        /* Barra de Herramientas */
-        .colibri-toolbar {
+        .colibri-floating-btn {
+            position: fixed;
+            top: 35px;
+            right: 35px;
+            z-index: 1002; 
+            width: 50px;
+            height: 50px;
+            background-color: #2e86de;
+            color: white;
+            border: none;
+            border-radius: 50%;
             display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            cursor: move;
+            transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+        .colibri-floating-btn:hover {
+            background-color: #1e6fbf;
+            transform: scale(1.05);
+        }
+        .colibri-floating-btn i {
+            font-size: 22px;
+            transition: transform 0.3s ease;
+            pointer-events: none;
+        }
+
+        .colibri-toolbar {
+            display: none; 
             flex-wrap: wrap;
             align-items: center;
             gap: 5px;
-            padding: 8px 10px;
+            padding: 12px 10px;
             background: #ffffff;
             border-bottom: 1px solid #e0e7ee;
+            animation: fadeInDown 0.3s ease;
+            flex-shrink: 0;
+        }
+        .colibri-toolbar.visible {
+            display: flex; 
         }
 
         .colibri-divider {
@@ -149,7 +190,7 @@
             justify-content: space-between;
         }
         .colibri-dropdown-toggle::after {
-            content: '\f078'; /* Icono de flecha hacia abajo de Font Awesome */
+            content: '\f078';
             font-family: 'Font Awesome 6 Free';
             font-weight: 900;
             font-size: 12px;
@@ -161,7 +202,7 @@
         }
 
         .colibri-dropdown-menu {
-            display: none; /* Oculto por defecto */
+            display: none;
             position: absolute;
             top: 100%;
             left: 0;
@@ -175,7 +216,7 @@
             margin-top: 5px;
         }
         .colibri-dropdown-menu.show {
-            display: block; /* Se muestra con JS */
+            display: block;
         }
 
         .colibri-dropdown-item {
@@ -192,15 +233,33 @@
         }
 
         .colibri-editor-area, .colibri-source-area {
-            min-height: 300px;
+            flex-grow: 1;
+            min-height: 200px;
             border: none;
             padding: 25px;
             font-size: 17px;
             line-height: 1.7;
-            background-color: #fff;
+            background-color: transparent;
             outline: none;
-            resize: vertical;
+            resize: none;
             color: #2d3436;
+            position: relative;
+            overflow-y: auto;
+            overflow-wrap: break-word; /* Asegura el salto de línea */
+            isolation: isolate; /* CORRECCIÓN: Crea un nuevo contexto de apilamiento */
+        }
+        
+        .colibri-editor-area:empty::before {
+            content: 'Editor Colibrí';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2.5em;
+            color: rgba(0, 0, 0, 0.08);
+            pointer-events: none;
+            z-index: -1;
+            font-weight: 600;
         }
         
         .colibri-editor-area img {
@@ -219,299 +278,148 @@
         }
         
         .image-wrapper {
-            position: relative;
-            display: inline-block;
-            max-width: 100%; 
+            position: absolute;
+            cursor: move;
         }
         .image-wrapper img {
             display: block;
-            max-width: 100%;
+            width: 100%;
+            height: 100%;
         }
-        .image-wrapper.selected img {
-            outline: 3px solid #2e86de;
+        .image-wrapper.selected {
+            outline: 2px solid #2e86de;
             outline-offset: 2px;
         }
         .resize-handle {
             position: absolute;
-            width: 10px;
-            height: 10px;
+            width: 12px;
+            height: 12px;
             background-color: #2e86de;
-            border: 1px solid #fff;
+            border: 2px solid #fff;
             border-radius: 50%;
             box-shadow: 0 0 5px rgba(0,0,0,0.3);
             z-index: 10;
         }
-        .resize-handle.tl { top: -5px; left: -5px; cursor: nwse-resize; }
-        .resize-handle.tr { top: -5px; right: -5px; cursor: nesw-resize; }
-        .resize-handle.bl { bottom: -5px; left: -5px; cursor: nesw-resize; }
-        .resize-handle.br { bottom: -5px; right: -5px; cursor: nwse-resize; }
+        .resize-handle.tl { top: -6px; left: -6px; cursor: nwse-resize; }
+        .resize-handle.tr { top: -6px; right: -6px; cursor: nesw-resize; }
+        .resize-handle.bl { bottom: -6px; left: -6px; cursor: nesw-resize; }
+        .resize-handle.br { bottom: -6px; right: -6px; cursor: nwse-resize; }
 
-        .colibri-editor-area h1,
-        .colibri-editor-area h2,
-        .colibri-editor-area h3,
-        .colibri-editor-area h4 {
-            margin: 1.4em 0 0.7em 0;
-            font-weight: 700;
-            line-height: 1.3;
-            color: #2c3e50;
+        .rotate-handle {
+            position: absolute;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 20px;
+            background-color: #2e86de;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            cursor: alias;
         }
+        .rotate-handle::before {
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 2px;
+            height: 10px;
+            background-color: #2e86de;
+        }
+        
+        .image-toolbar {
+            position: absolute;
+            top: -45px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #34495e;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            display: flex;
+            gap: 4px;
+            padding: 4px;
+            z-index: 20;
+            display: none;
+        }
+        .image-wrapper.selected .image-toolbar {
+            display: flex;
+        }
+        
+        .image-toolbar-btn {
+            background: none;
+            border: none;
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        .image-toolbar-btn:hover {
+            background-color: #4a627a;
+        }
+        .image-toolbar-btn.active {
+            background-color: #2e86de;
+        }
+        .image-toolbar-btn i {
+            font-size: 16px;
+        }
+
+        .colibri-editor-area h1, h2, h3, h4 { margin: 1.4em 0 0.7em 0; font-weight: 700; line-height: 1.3; color: #2c3e50; }
         .colibri-editor-area h1 { font-size: 2.2em; }
         .colibri-editor-area h2 { font-size: 1.8em; }
         .colibri-editor-area h3 { font-size: 1.5em; }
         .colibri-editor-area h4 { font-size: 1.25em; }
+        .colibri-editor-area blockquote { border-left: 3px solid #a9b8c9; margin: 1.5em 0; padding: 10px 20px; color: #5f6e85; font-style: italic; background-color: #f8f9fa; border-radius: 0 8px 8px 0; }
+        .colibri-editor-area ul, .colibri-editor-area ol { padding-left: 2em; margin-bottom: 1em; }
+        .colibri-editor-area ul.checklist { list-style-type: none; padding-left: 1em; }
+        .colibri-editor-area ul.checklist li { display: flex; align-items: center; margin-bottom: 5px; }
+        .colibri-editor-area ul.checklist li input[type="checkbox"] { margin-right: 10px; width: 18px; height: 18px; flex-shrink: 0; }
+        .colibri-editor-area ul.checklist li label { flex-grow: 1; }
+        .colibri-editor-area ul.checklist li.checked label { text-decoration: line-through; color: #8a9ab0; }
+        .colibri-editor-area a { color: #2e86de; text-decoration: none; border-bottom: 2px solid rgba(46, 134, 222, 0.2); transition: all 0.2s ease; }
+        .colibri-editor-area a:hover { background-color: rgba(46, 134, 222, 0.1); border-bottom-color: #2e86de; }
+        .colibri-editor-area table { width: 100%; border-collapse: collapse; margin: 1em 0; }
+        .colibri-editor-area th, .colibri-editor-area td { border: 1px solid #d1d9e6; padding: 8px 12px; text-align: left; }
+        .colibri-editor-area th { background-color: #f8f9fa; font-weight: 600; }
+        .colibri-editor-area hr { border: 0; margin: 2em 0; }
+        .colibri-editor-area hr.page-break { border-top: 2px dashed #a9b8c9; }
+        .colibri-editor-area hr:not(.page-break) { border-top: 1px solid #d1d9e6; }
 
-        .colibri-editor-area blockquote {
-            border-left: 3px solid #a9b8c9;
-            margin: 1.5em 0;
-            padding: 10px 20px;
-            color: #5f6e85;
-            font-style: italic;
-            background-color: #f8f9fa;
-            border-radius: 0 8px 8px 0;
-        }
+        .colibri-statusbar { display: flex; gap: 15px; padding: 8px 25px; background-color: #f8f9fa; border-top: 1px solid #e0e7ee; font-size: 13px; color: #5f6e85; user-select: none; flex-shrink: 0; }
+        .colibri-statusbar .colibri-divider { width: 1px; height: 16px; background-color: #e0e7ee; margin: 0; align-self: center; }
 
-        .colibri-editor-area ul, .colibri-editor-area ol {
-            padding-left: 2em;
-            margin-bottom: 1em;
-        }
+        .colibri-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(10, 20, 30, 0.5); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 2000; animation: fadeIn 0.3s ease; }
+        .colibri-modal { background-color: #fff; padding: 0; border-radius: 12px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2); width: 90%; max-width: 450px; animation: slideIn 0.4s cubic-bezier(0.25, 1, 0.5, 1); overflow: hidden; }
+        .colibri-modal-header { padding: 20px 25px; border-bottom: 1px solid #e0e7ee; }
+        .colibri-modal-header h3 { margin: 0; font-size: 20px; color: #2c3e50; }
+        .colibri-modal-body { padding: 25px; }
+        .colibri-modal-body p { margin: 0 0 20px 0; color: #5f6e85; font-size: 16px; }
+        .colibri-modal input[type="text"], .colibri-modal input[type="number"], .colibri-modal input[type="file"] { width: 100%; padding: 12px; border: 1px solid #d1d9e6; border-radius: 6px; font-size: 16px; box-sizing: border-box; margin-bottom: 20px; }
+        .colibri-modal input:focus { outline: none; border-color: #2e86de; box-shadow: 0 0 0 3px rgba(46, 134, 222, 0.15); }
+        .colibri-modal-actions { display: flex; justify-content: flex-end; gap: 10px; background-color: #f8f9fa; padding: 15px 25px; border-top: 1px solid #e0e7ee; }
+        .colibri-modal-btn { padding: 10px 20px; border: none; border-radius: 6px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; }
+        .colibri-modal-btn.primary { background-color: #2e86de; color: #fff; }
+        .colibri-modal-btn.primary:hover { background-color: #1e6fbf; }
+        .colibri-modal-btn { background-color: #e0e7ee; color: #5f6e85; }
+        .colibri-modal-btn:hover { background-color: #d1d9e6; }
+        .colibri-tabs { display: flex; border-bottom: 1px solid #e0e7ee; }
+        .colibri-tab { padding: 12px 20px; cursor: pointer; font-weight: 600; color: #5f6e85; border-bottom: 3px solid transparent; margin-bottom: -1px; }
+        .colibri-tab.active { color: #2e86de; border-bottom-color: #2e86de; }
+        .colibri-tab-content { display: none; }
+        .colibri-tab-content.active { display: block; }
+        .colibri-drop-zone { border: 2px dashed #d1d9e6; border-radius: 8px; padding: 40px; text-align: center; color: #8a9ab0; cursor: pointer; transition: all 0.2s ease; }
+        .colibri-drop-zone.dragover { border-color: #2e86de; background-color: #f0f5fa; color: #2e86de; }
+        .colibri-drop-zone i { font-size: 3em; margin-bottom: 10px; }
+        .colibri-drop-zone input[type="file"] { display: none; }
 
-        /* --- NUEVO: Estilos para Checklist --- */
-        .colibri-editor-area ul.checklist {
-            list-style-type: none;
-            padding-left: 1em;
-        }
-        .colibri-editor-area ul.checklist li {
-            display: flex;
-            align-items: center;
-            margin-bottom: 5px;
-        }
-        .colibri-editor-area ul.checklist li input[type="checkbox"] {
-            margin-right: 10px;
-            width: 18px;
-            height: 18px;
-            flex-shrink: 0; /* Evita que el checkbox se encoja */
-        }
-        .colibri-editor-area ul.checklist li label {
-            flex-grow: 1; /* Permite que la etiqueta ocupe el espacio restante */
-        }
-        .colibri-editor-area ul.checklist li.checked label {
-            text-decoration: line-through;
-            color: #8a9ab0;
-        }
-        /* --- FIN de nuevos estilos --- */
-
-        .colibri-editor-area a {
-            color: #2e86de;
-            text-decoration: none;
-            border-bottom: 2px solid rgba(46, 134, 222, 0.2);
-            transition: all 0.2s ease;
-        }
-        .colibri-editor-area a:hover {
-            background-color: rgba(46, 134, 222, 0.1);
-            border-bottom-color: #2e86de;
-        }
-        
-        .colibri-editor-area table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 1em 0;
-        }
-        .colibri-editor-area th, .colibri-editor-area td {
-            border: 1px solid #d1d9e6;
-            padding: 8px 12px;
-            text-align: left;
-        }
-        .colibri-editor-area th {
-            background-color: #f8f9fa;
-            font-weight: 600;
-        }
-        .colibri-editor-area hr.page-break {
-            border: 0;
-            border-top: 2px dashed #a9b8c9;
-            margin: 2em 0;
-        }
-        .colibri-editor-area hr:not(.page-break) {
-            border: 0;
-            border-top: 1px solid #d1d9e6;
-            margin: 2em 0;
-        }
-
-        .colibri-statusbar {
-            display: flex;
-            gap: 15px;
-            padding: 8px 25px;
-            background-color: #f8f9fa;
-            border-top: 1px solid #e0e7ee;
-            font-size: 13px;
-            color: #5f6e85;
-            user-select: none;
-        }
-        .colibri-statusbar .colibri-divider {
-            width: 1px;
-            height: 16px;
-            background-color: #e0e7ee;
-            margin: 0;
-            align-self: center;
-        }
-
-        /* --- ESTILOS PARA MODALES --- */
-        .colibri-modal-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(10, 20, 30, 0.5);
-            backdrop-filter: blur(4px);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            animation: fadeIn 0.3s ease;
-        }
-
-        .colibri-modal {
-            background-color: #fff;
-            padding: 0;
-            border-radius: 12px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-            width: 90%;
-            max-width: 450px;
-            animation: slideIn 0.4s cubic-bezier(0.25, 1, 0.5, 1);
-            overflow: hidden;
-        }
-
-        .colibri-modal-header {
-            padding: 20px 25px;
-            border-bottom: 1px solid #e0e7ee;
-        }
-
-        .colibri-modal-header h3 {
-            margin: 0;
-            font-size: 20px;
-            color: #2c3e50;
-        }
-        
-        .colibri-modal-body {
-            padding: 25px;
-        }
-
-        .colibri-modal-body p {
-            margin: 0 0 20px 0;
-            color: #5f6e85;
-            font-size: 16px;
-        }
-
-        .colibri-modal input[type="text"], .colibri-modal input[type="number"], .colibri-modal input[type="file"] {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #d1d9e6;
-            border-radius: 6px;
-            font-size: 16px;
-            box-sizing: border-box;
-            margin-bottom: 20px;
-        }
-        .colibri-modal input:focus {
-            outline: none;
-            border-color: #2e86de;
-            box-shadow: 0 0 0 3px rgba(46, 134, 222, 0.15);
-        }
-
-        .colibri-modal-actions {
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-            background-color: #f8f9fa;
-            padding: 15px 25px;
-            border-top: 1px solid #e0e7ee;
-        }
-
-        .colibri-modal-btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 6px;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .colibri-modal-btn.primary {
-            background-color: #2e86de;
-            color: #fff;
-        }
-        .colibri-modal-btn.primary:hover {
-            background-color: #1e6fbf;
-        }
-
-        .colibri-modal-btn {
-            background-color: #e0e7ee;
-            color: #5f6e85;
-        }
-        .colibri-modal-btn:hover {
-            background-color: #d1d9e6;
-        }
-        
-        .colibri-tabs {
-            display: flex;
-            border-bottom: 1px solid #e0e7ee;
-        }
-        .colibri-tab {
-            padding: 12px 20px;
-            cursor: pointer;
-            font-weight: 600;
-            color: #5f6e85;
-            border-bottom: 3px solid transparent;
-            margin-bottom: -1px;
-        }
-        .colibri-tab.active {
-            color: #2e86de;
-            border-bottom-color: #2e86de;
-        }
-        .colibri-tab-content {
-            display: none;
-        }
-        .colibri-tab-content.active {
-            display: block;
-        }
-        .colibri-drop-zone {
-            border: 2px dashed #d1d9e6;
-            border-radius: 8px;
-            padding: 40px;
-            text-align: center;
-            color: #8a9ab0;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        .colibri-drop-zone.dragover {
-            border-color: #2e86de;
-            background-color: #f0f5fa;
-            color: #2e86de;
-        }
-        .colibri-drop-zone i {
-            font-size: 3em;
-            margin-bottom: 10px;
-        }
-        .colibri-drop-zone input[type="file"] {
-            display: none;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        @keyframes slideIn {
-            from { transform: translateY(-30px) scale(0.95); opacity: 0; }
-            to { transform: translateY(0) scale(1); opacity: 1; }
-        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideIn { from { transform: translateY(-30px) scale(0.95); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
+        @keyframes fadeInDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
-
-    <h1>Editor Colibrí</h1>
-    <p>Esta es una versión autocontenida para depuración. Todo el CSS y JS están en este archivo.</p>
-    
     <!-- Contenedor donde se inicializará el editor -->
     <div id="editor-container"></div>
 
@@ -520,7 +428,7 @@
         /**
          * Colibri WYSIWYG Editor
          * @author Gemini
-         * @version 3.3.0 (con checklist mejorada y justificado)
+         * @version 3.9.8 (con capas de imagen corregidas)
          */
         class ColibriEditor {
             constructor(selector) {
@@ -532,13 +440,25 @@
                 this.sourceMode = false;
                 this.savedSelection = null; 
                 this.lastHighlightColor = '#FFFF00';
+                
+                this.history = [];
+                this.historyIndex = -1;
+                this.historyTimeout = null;
+
                 this.buildEditor();
                 this.setupEventListeners();
                 this.updateStatusBar();
+                this.pushState();
             }
 
             buildEditor() {
                 this.container.classList.add('colibri-container-instance');
+                
+                this.floatingButton = document.createElement('button');
+                this.floatingButton.className = 'colibri-floating-btn';
+                this.floatingButton.title = 'Mostrar/Ocultar Herramientas';
+                this.floatingButton.innerHTML = '<i class="fas fa-bars"></i>';
+
                 this.toolbar = document.createElement('div');
                 this.toolbar.className = 'colibri-toolbar';
                 this.toolbar.innerHTML = `
@@ -550,8 +470,8 @@
                         </div>
                     </div>
                     <span class="colibri-divider"></span>
-                    <button class="colibri-btn" data-command="undo" title="Deshacer"><i class="fas fa-undo"></i></button>
-                    <button class="colibri-btn" data-command="redo" title="Rehacer"><i class="fas fa-redo"></i></button>
+                    <button class="colibri-btn" data-command="undo" title="Deshacer" disabled><i class="fas fa-undo"></i></button>
+                    <button class="colibri-btn" data-command="redo" title="Rehacer" disabled><i class="fas fa-redo"></i></button>
                     <button class="colibri-btn" data-command="removeFormat" title="Limpiar Formato"><i class="fas fa-eraser"></i></button>
                     <span class="colibri-divider"></span>
                     <div class="colibri-dropdown" data-command="formatBlock">
@@ -615,7 +535,6 @@
                 this.editor = document.createElement('div');
                 this.editor.className = 'colibri-editor-area';
                 this.editor.contentEditable = true;
-                this.editor.innerHTML = '<p>Empieza a escribir aquí...</p>';
 
                 this.sourceView = document.createElement('textarea');
                 this.sourceView.className = 'colibri-source-area';
@@ -640,29 +559,52 @@
                 `;
 
                 this.container.innerHTML = '';
+                document.body.appendChild(this.floatingButton);
                 this.container.appendChild(this.toolbar);
                 this.container.appendChild(this.editor);
                 this.container.appendChild(this.sourceView);
                 this.container.appendChild(this.statusBar);
-                this.container.appendChild(this.modalContainer);
+                document.body.appendChild(this.modalContainer);
             }
 
             setupEventListeners() {
+                this.addFloatingButtonListeners();
+
                 this.toolbar.addEventListener('click', e => this.handleToolbarClick(e));
+                
                 document.addEventListener('click', e => {
-                    if (!this.toolbar.contains(e.target)) {
+                    const isClickInsideToolbar = this.toolbar.contains(e.target);
+                    const isClickOnFloatingBtn = this.floatingButton.contains(e.target);
+                    const isClickInsideImageWrapper = e.target.closest('.image-wrapper');
+
+                    if (!isClickInsideToolbar && !isClickOnFloatingBtn && !isClickInsideImageWrapper) {
+                        this.deselectAllImages();
+                    }
+
+                    if (!isClickInsideToolbar && !isClickOnFloatingBtn) {
                         this.closeAllDropdowns();
+                        if (this.toolbar.classList.contains('visible')) {
+                            this.toolbar.classList.remove('visible');
+                            const icon = this.floatingButton.querySelector('i');
+                            icon.classList.remove('fa-times');
+                            icon.classList.add('fa-bars');
+                            icon.style.transform = 'rotate(0deg)';
+                        }
+                    } else if (!isClickInsideToolbar) {
+                         this.closeAllDropdowns();
                     }
                 });
 
                 const updateAll = () => {
                     this.updateToolbarState();
                     this.updateStatusBar();
+                    clearTimeout(this.historyTimeout);
+                    this.historyTimeout = setTimeout(() => this.pushState(), 500);
                 };
-                ['focus', 'input', 'selectionchange', 'keyup'].forEach(event => this.editor.addEventListener(event, updateAll));
+                ['focus', 'input', 'keyup'].forEach(event => this.editor.addEventListener(event, updateAll));
+                this.editor.addEventListener('selectionchange', () => this.updateToolbarState());
                 this.editor.addEventListener('click', e => this.handleEditorClick(e));
-
-                // **NUEVO: Listeners para Checklist**
+                
                 this.editor.addEventListener('keydown', e => this.handleKeyDown(e));
                 this.editor.addEventListener('change', e => this.handleChecklistToggle(e));
 
@@ -692,61 +634,331 @@
                 dropZone.addEventListener('drop', e => { if (e.dataTransfer.files[0]) this.handleImageUpload(e.dataTransfer.files[0]); });
                 fileInput.addEventListener('change', e => { if (e.target.files[0]) this.handleImageUpload(e.target.files[0]); });
             }
+
+            addFloatingButtonListeners() {
+                let isDraggingButton = false;
+                let offsetX, offsetY;
+
+                this.floatingButton.addEventListener('mousedown', e => {
+                    isDraggingButton = true;
+                    offsetX = e.clientX - this.floatingButton.getBoundingClientRect().left;
+                    offsetY = e.clientY - this.floatingButton.getBoundingClientRect().top;
+                    this.floatingButton.style.transition = 'none';
+                });
+
+                document.addEventListener('mousemove', e => {
+                    if (isDraggingButton) {
+                        let newLeft = e.clientX - offsetX;
+                        let newTop = e.clientY - offsetY;
+
+                        const btnWidth = this.floatingButton.offsetWidth;
+                        const btnHeight = this.floatingButton.offsetHeight;
+                        newLeft = Math.max(0, Math.min(newLeft, window.innerWidth - btnWidth));
+                        newTop = Math.max(0, Math.min(newTop, window.innerHeight - btnHeight));
+
+                        this.floatingButton.style.left = `${newLeft}px`;
+                        this.floatingButton.style.top = `${newTop}px`;
+                        this.floatingButton.style.right = 'auto';
+                    }
+                });
+
+                document.addEventListener('mouseup', () => {
+                    if (isDraggingButton) {
+                        isDraggingButton = false;
+                        this.floatingButton.style.transition = 'all 0.3s cubic-bezier(0.25, 1, 0.5, 1)';
+                    }
+                });
+
+                this.floatingButton.addEventListener('click', e => {
+                    if (e.target.closest('.colibri-floating-btn')) {
+                        const isVisible = this.toolbar.classList.toggle('visible');
+                        const icon = this.floatingButton.querySelector('i');
+                        icon.classList.toggle('fa-bars', !isVisible);
+                        icon.classList.toggle('fa-times', isVisible);
+                        icon.style.transform = isVisible ? 'rotate(90deg)' : 'rotate(0deg)';
+                    }
+                });
+            }
             
             handleEditorClick(e) {
                 const target = e.target;
-                if (target.tagName === 'IMG') {
+                const wrapper = target.closest('.image-wrapper');
+
+                if (wrapper) {
+                    this.selectImage(wrapper);
+                } else if (target.tagName === 'IMG' && !target.closest('.image-wrapper')) {
                     this.selectImage(target);
-                } else if (!target.closest('.image-wrapper')) {
+                } else {
                     this.deselectAllImages();
                 }
             }
 
-            selectImage(img) {
-                if (img.parentElement.classList.contains('image-wrapper')) return;
-                this.deselectAllImages();
-                const wrapper = document.createElement('span');
-                wrapper.className = 'image-wrapper selected';
-                wrapper.contentEditable = false;
-                wrapper.style.width = img.style.width || `${img.offsetWidth}px`;
-                img.parentNode.insertBefore(wrapper, img);
-                wrapper.appendChild(img);
+            selectImage(element) {
+                let wrapper;
+                
+                if (element.tagName === 'IMG') {
+                    this.deselectAllImages();
+                    wrapper = document.createElement('div');
+                    wrapper.className = 'image-wrapper aspect-locked'; // Bloqueado por defecto
+                    wrapper.contentEditable = false;
+                    
+                    wrapper.style.position = 'absolute';
+                    wrapper.style.left = (element.offsetLeft) + 'px';
+                    wrapper.style.top = (element.offsetTop) + 'px';
+                    wrapper.style.width = element.offsetWidth + 'px';
+                    wrapper.style.height = element.offsetHeight + 'px';
+                    
+                    element.parentNode.replaceChild(wrapper, element);
+                    wrapper.appendChild(element);
+
+                    this.addDragListener(wrapper);
+                } else {
+                    wrapper = element;
+                }
+
+                if (!wrapper.classList.contains('selected')) {
+                    this.deselectAllImages();
+                    wrapper.classList.add('selected');
+                    this.addImageControls(wrapper);
+                }
+            }
+
+            deselectAllImages() {
+                this.editor.querySelectorAll('.image-wrapper.selected').forEach(wrapper => {
+                    wrapper.classList.remove('selected');
+                    wrapper.querySelectorAll('.resize-handle, .rotate-handle, .image-toolbar').forEach(handle => handle.remove());
+                });
+            }
+            
+            addImageControls(wrapper) {
                 ['tl', 'tr', 'bl', 'br'].forEach(pos => {
                     const handle = document.createElement('div');
                     handle.className = `resize-handle ${pos}`;
                     wrapper.appendChild(handle);
-                    this.addResizeListener(handle, wrapper);
                 });
+                
+                const rotateHandle = document.createElement('div');
+                rotateHandle.className = 'rotate-handle';
+                wrapper.appendChild(rotateHandle);
+
+                const toolbar = document.createElement('div');
+                toolbar.className = 'image-toolbar';
+                toolbar.innerHTML = `
+                    <button class="image-toolbar-btn" data-action="toggle-aspect-ratio" title="Mantener Proporciones"><i class="fas fa-lock"></i></button>
+                    <button class="image-toolbar-btn" data-action="align-left" title="Alinear a la Izquierda"><i class="fas fa-align-left"></i></button>
+                    <button class="image-toolbar-btn" data-action="align-center" title="Centrar"><i class="fas fa-align-center"></i></button>
+                    <button class="image-toolbar-btn" data-action="align-right" title="Alinear a la Derecha"><i class="fas fa-align-right"></i></button>
+                    <button class="image-toolbar-btn" data-action="opacity" title="Difuminar"><i class="fas fa-star-half-alt"></i></button>
+                    <button class="image-toolbar-btn" data-action="rotate-right" title="Rotar 90°"><i class="fas fa-rotate-right"></i></button>
+                    <button class="image-toolbar-btn" data-action="send-back" title="Enviar al Fondo"><i class="fas fa-layer-group" style="transform: scaleY(-1);"></i></button>
+                    <button class="image-toolbar-btn" data-action="bring-front" title="Traer al Frente"><i class="fas fa-layer-group"></i></button>
+                `;
+                wrapper.appendChild(toolbar);
+
+                if (wrapper.classList.contains('aspect-locked')) {
+                    toolbar.querySelector('[data-action="toggle-aspect-ratio"]').classList.add('active');
+                }
+
+                this.setupResizeForWrapper(wrapper);
+                this.addRotationListener(rotateHandle, wrapper);
+                this.setupImageToolbar(toolbar, wrapper);
             }
 
-            deselectAllImages() {
-                this.editor.querySelectorAll('.image-wrapper').forEach(wrapper => {
-                    const img = wrapper.querySelector('img');
-                    if (img) {
-                        img.style.width = wrapper.style.width;
-                        wrapper.parentNode.insertBefore(img, wrapper);
-                    }
-                    wrapper.remove();
-                });
-            }
+            addDragListener(wrapper) {
+                wrapper.addEventListener('mousedown', e => {
+                    if (e.target.closest('.resize-handle, .rotate-handle, .image-toolbar')) return;
+                    e.preventDefault();
+                    this.selectImage(wrapper);
 
-            addResizeListener(handle, wrapper) {
-                let startX, startWidth;
-                handle.addEventListener('mousedown', e => {
-                    e.preventDefault(); e.stopPropagation();
-                    startX = e.clientX;
-                    startWidth = wrapper.offsetWidth;
+                    let startX = e.clientX;
+                    let startY = e.clientY;
+                    let startLeft = wrapper.offsetLeft;
+                    let startTop = wrapper.offsetTop;
+
                     const doDrag = (moveEvent) => {
                         moveEvent.preventDefault();
-                        wrapper.style.width = `${startWidth + (moveEvent.clientX - startX)}px`;
+                        let newLeft = startLeft + moveEvent.clientX - startX;
+                        let newTop = startTop + moveEvent.clientY - startY;
+
+                        newLeft = Math.max(0, Math.min(newLeft, this.editor.scrollWidth - wrapper.offsetWidth));
+                        newTop = Math.max(0, Math.min(newTop, this.editor.scrollHeight - wrapper.offsetHeight));
+
+                        wrapper.style.left = `${newLeft}px`;
+                        wrapper.style.top = `${newTop}px`;
                     };
                     const stopDrag = () => {
                         document.removeEventListener('mousemove', doDrag);
                         document.removeEventListener('mouseup', stopDrag);
+                        this.pushState();
                     };
                     document.addEventListener('mousemove', doDrag);
                     document.addEventListener('mouseup', stopDrag);
                 });
+            }
+
+            setupResizeForWrapper(wrapper) {
+                wrapper.querySelectorAll('.resize-handle').forEach(handle => {
+                    handle.addEventListener('mousedown', e => {
+                        e.preventDefault(); e.stopPropagation();
+                        const startX = e.clientX;
+                        const startY = e.clientY;
+                        const startWidth = wrapper.offsetWidth;
+                        const startHeight = wrapper.offsetHeight;
+                        const startLeft = wrapper.offsetLeft;
+                        const startTop = wrapper.offsetTop;
+                        const aspectRatio = startWidth / startHeight;
+
+                        const doResize = (moveEvent) => {
+                            const dx = moveEvent.clientX - startX;
+                            const dy = moveEvent.clientY - startY;
+                            const isLocked = wrapper.classList.contains('aspect-locked');
+
+                            let newWidth, newHeight, newLeft = startLeft, newTop = startTop;
+
+                            if (handle.classList.contains('br')) {
+                                newWidth = startWidth + dx;
+                                newHeight = isLocked ? newWidth / aspectRatio : startHeight + dy;
+                            } else if (handle.classList.contains('bl')) {
+                                newWidth = startWidth - dx;
+                                newHeight = isLocked ? newWidth / aspectRatio : startHeight + dy;
+                                newLeft = startLeft + dx;
+                            } else if (handle.classList.contains('tr')) {
+                                newWidth = startWidth + dx;
+                                newHeight = isLocked ? newWidth / aspectRatio : startHeight - dy;
+                                newTop = startTop + dy;
+                            } else if (handle.classList.contains('tl')) {
+                                newWidth = startWidth - dx;
+                                newHeight = isLocked ? newWidth / aspectRatio : startHeight - dy;
+                                newLeft = startLeft + dx;
+                                newTop = startTop + dy;
+                            }
+                            
+                            wrapper.style.width = `${newWidth}px`;
+                            wrapper.style.height = `${newHeight}px`;
+                            wrapper.style.left = `${newLeft}px`;
+                            wrapper.style.top = `${newTop}px`;
+                        };
+                        const stopResize = () => {
+                            document.removeEventListener('mousemove', doResize);
+                            this.pushState();
+                        };
+                        document.addEventListener('mousemove', doResize);
+                        document.addEventListener('mouseup', stopResize, { once: true });
+                    });
+                });
+            }
+
+            addRotationListener(handle, wrapper) {
+                handle.addEventListener('mousedown', e => {
+                    e.preventDefault(); e.stopPropagation();
+                    const rect = wrapper.getBoundingClientRect();
+                    const centerX = rect.left + rect.width / 2;
+                    const centerY = rect.top + rect.height / 2;
+                    const startAngle = Math.atan2(e.clientY - centerY, e.clientX - centerX);
+                    
+                    const currentTransform = window.getComputedStyle(wrapper).transform;
+                    let initialAngle = 0;
+                    if (currentTransform !== 'none') {
+                        const matrix = new DOMMatrix(currentTransform);
+                        initialAngle = Math.atan2(matrix.b, matrix.a);
+                    }
+
+                    const doRotate = (moveEvent) => {
+                        const moveAngle = Math.atan2(moveEvent.clientY - centerY, moveEvent.clientX - centerX);
+                        const angle = initialAngle + (moveAngle - startAngle);
+                        wrapper.style.transform = `rotate(${angle}rad)`;
+                        
+                        wrapper.querySelectorAll('.resize-handle, .rotate-handle, .image-toolbar').forEach(control => {
+                            if(control.classList.contains('image-toolbar') || control.classList.contains('rotate-handle')) {
+                                control.style.transform = `translateX(-50%) rotate(${-angle}rad)`;
+                            } else {
+                                control.style.transform = `rotate(${-angle}rad)`;
+                            }
+                        });
+                    };
+                    const stopRotate = () => {
+                        document.removeEventListener('mousemove', doRotate);
+                        this.pushState();
+                    };
+                    document.addEventListener('mousemove', doRotate);
+                    document.addEventListener('mouseup', stopRotate, { once: true });
+                });
+            }
+
+            setupImageToolbar(toolbar, wrapper) {
+                toolbar.addEventListener('click', e => {
+                    e.stopPropagation();
+                    const button = e.target.closest('.image-toolbar-btn');
+                    if (!button) return;
+
+                    const action = button.dataset.action;
+                    switch(action) {
+                        case 'toggle-aspect-ratio':
+                            wrapper.classList.toggle('aspect-locked');
+                            button.classList.toggle('active');
+                            break;
+                        case 'align-left': wrapper.style.left = '0px'; break;
+                        case 'align-center': wrapper.style.left = `${(this.editor.offsetWidth - wrapper.offsetWidth) / 2}px`; break;
+                        case 'align-right': wrapper.style.left = `${this.editor.offsetWidth - wrapper.offsetWidth}px`; break;
+                        case 'send-back': wrapper.style.zIndex = '-1'; break;
+                        case 'bring-front': wrapper.style.zIndex = '6'; break;
+                        case 'opacity':
+                            let currentOpacity = parseFloat(wrapper.style.opacity || 1.0);
+                            if (currentOpacity > 0.5) wrapper.style.opacity = 0.5;
+                            else if (currentOpacity > 0.2) wrapper.style.opacity = 0.2;
+                            else wrapper.style.opacity = 1.0;
+                            break;
+                        case 'rotate-right':
+                            const currentTransform = wrapper.style.transform;
+                            let currentAngle = 0;
+                            if (currentTransform.includes('rotate')) {
+                                const match = currentTransform.match(/rotate\((.+)rad\)/);
+                                if (match) currentAngle = parseFloat(match[1]);
+                            }
+                            const newAngle = currentAngle + (Math.PI / 2);
+                            wrapper.style.transform = `rotate(${newAngle}rad)`;
+                            break;
+                    }
+                    this.pushState();
+                });
+            }
+            
+            pushState() {
+                const currentState = this.editor.innerHTML;
+                if (this.history.length > 0 && this.history[this.historyIndex] === currentState) return;
+                this.history = this.history.slice(0, this.historyIndex + 1);
+                this.history.push(currentState);
+                this.historyIndex++;
+                this.updateUndoRedoButtons();
+            }
+
+            undo() {
+                if (this.historyIndex > 0) {
+                    this.historyIndex--;
+                    this.loadState(this.history[this.historyIndex]);
+                }
+            }
+
+            redo() {
+                if (this.historyIndex < this.history.length - 1) {
+                    this.historyIndex++;
+                    this.loadState(this.history[this.historyIndex]);
+                }
+            }
+
+            loadState(state) {
+                this.editor.innerHTML = state;
+                this.editor.querySelectorAll('.image-wrapper').forEach(wrapper => {
+                    this.addDragListener(wrapper);
+                });
+                this.updateUndoRedoButtons();
+            }
+            
+            updateUndoRedoButtons() {
+                const undoBtn = this.toolbar.querySelector('[data-command="undo"]');
+                const redoBtn = this.toolbar.querySelector('[data-command="redo"]');
+                undoBtn.disabled = this.historyIndex <= 0;
+                redoBtn.disabled = this.historyIndex >= this.history.length - 1;
             }
 
             saveSelection() {
@@ -799,15 +1011,15 @@
                     colorPicker.oninput = () => {
                         this.restoreSelection();
                         this.executeCommand(colorPicker.dataset.command, colorPicker.value);
-                        if (colorPicker.dataset.command === 'backColor') {
-                            this.lastHighlightColor = colorPicker.value;
-                        }
                     };
                     return;
                 }
 
                 if (normalButton) {
                     const command = normalButton.dataset.command;
+                    if (command === 'undo') { this.undo(); return; }
+                    if (command === 'redo') { this.redo(); return; }
+
                     if (command === 'toggleSource') { this.toggleSourceView(); return; }
                     if (this.sourceMode) { this.showAlert("Sal del modo de vista de código para usar las herramientas de formato."); return; }
 
@@ -907,6 +1119,7 @@
                     const currentLineHeight = parseFloat(window.getComputedStyle(parentEl).lineHeight) / parseFloat(window.getComputedStyle(parentEl).fontSize);
                     const newLineHeight = (isNaN(currentLineHeight) ? 1.7 : currentLineHeight) + amount;
                     parentEl.style.lineHeight = newLineHeight.toFixed(1);
+                    this.pushState();
                 }
                 this.editor.focus();
             }
@@ -935,11 +1148,9 @@
                 this.editor.focus();
                 this.restoreSelection();
 
-                if (command === 'backColor' && value === null) {
-                    document.execCommand('hiliteColor', false, this.lastHighlightColor);
-                } else {
-                    document.execCommand(command, false, value);
-                }
+                document.execCommand(command, false, value);
+                
+                this.pushState();
                 this.updateToolbarState();
             }
 
@@ -980,9 +1191,9 @@
 
             updateToolbarState() {
                 if (this.sourceMode) return;
-                this.toolbar.querySelectorAll('.colibri-btn').forEach(btn => {
+                this.toolbar.querySelectorAll('.colibri-btn[data-command]').forEach(btn => {
                     const command = btn.dataset.command;
-                    if (command && document.queryCommandState(command)) {
+                    if (!['undo', 'redo'].includes(command) && document.queryCommandState(command)) {
                         btn.classList.add('active');
                     } else {
                         btn.classList.remove('active');
@@ -991,13 +1202,12 @@
                 
                 const deleteBtn = this.toolbar.querySelector('[data-command="deleteElement"]');
                 const selection = window.getSelection();
-                if (selection.rangeCount > 0) {
-                    const node = selection.getRangeAt(0).commonAncestorContainer;
-                    const element = node.nodeType === 1 ? node : node.parentNode;
-                    if (element.closest('table') || element.closest('hr')) {
-                        deleteBtn.disabled = false;
-                    } else {
-                        deleteBtn.disabled = true;
+                if (selection && selection.rangeCount > 0) {
+                    const range = selection.getRangeAt(0);
+                    if (range) {
+                        const node = range.commonAncestorContainer;
+                        const element = node.nodeType === 1 ? node : node.parentNode;
+                        deleteBtn.disabled = !element.closest('table, hr');
                     }
                 } else {
                     deleteBtn.disabled = true;
@@ -1026,7 +1236,7 @@
             updateStatusBar() {
                 const text = this.editor.innerText || '';
                 const charCount = text.length;
-                const wordCount = text.trim().split(/\s+/).filter(item => item).length;
+                const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
                 this.statusBar.querySelector('#char-count').textContent = charCount;
                 this.statusBar.querySelector('#word-count').textContent = wordCount;
 
@@ -1119,11 +1329,9 @@
                     const element = node.nodeType === 1 ? node : node.parentNode;
                     const table = element.closest('table');
                     const hr = element.closest('hr');
-                    if (table) {
-                        table.remove();
-                    } else if (hr) {
-                        hr.remove();
-                    }
+                    if (table) table.remove();
+                    else if (hr) hr.remove();
+                    this.pushState();
                 }
             }
 
@@ -1143,6 +1351,7 @@
                             li.innerHTML = `<input type="checkbox"><label contenteditable="true">${text}</label>`;
                         }
                     });
+                    this.pushState();
                 }
             }
             
@@ -1213,6 +1422,7 @@
                     const li = target.closest('li');
                     if (li) {
                         li.classList.toggle('checked', target.checked);
+                        this.pushState();
                     }
                 }
             }

@@ -3,7 +3,7 @@ Falta corregir e implementar
 2. Colocar color a las fuentes
 3. Parrafo y titulos no trabajan correctamente
 4. Tamaño de fuente no trabaja correctamente
-5. Implementar un checklist
+5. Implementar un checklist AL DAR 3 ENTER DEBE SALIRSE DE LA OPCION DE CREAR UN CHECKLIST
 6. Implementar un botón para borrar la línea ingresada
 permitir grabar un audio mp3 wma en caso de otro formato enviar un error grafícamente bonito
 

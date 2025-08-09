@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ejemplo de API de la Biblia</title>
+    <style>
+        body { font-family: sans-serif; line-height: 1.6; padding: 20px; }
+        #versiculo-contenedor { background-color: #f0f0f0; border-left: 5px solid #007bff; padding: 15px; margin-top: 20px; }
+        button { padding: 10px 15px; font-size: 16px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <h1>Consumir una API de la Biblia con JavaScript</h1>
+    <p>Haz clic en el botón para cargar el texto de Juan 3:16.</p>
+
+    <button id="cargarVersiculoBtn">Cargar Versículo</button>
+
+    <div id="versiculo-contenedor">
+        </div>
+
+    <script>
+        // 1. Seleccionar los elementos del HTML
+        const boton = document.getElementById('cargarVersiculoBtn');
+        const contenedor = document.getElementById('versiculo-contenedor');
+
+        // 2. Añadir un "escuchador" de eventos al botón
+        boton.addEventListener('click', () => {
+            // Cuando se hace clic, se ejecuta la función para obtener el versículo
+            obtenerVersiculo();
+        });
+
+        // 3. Crear la función que llama a la API
+        async function obtenerVersiculo() {
+            const url = 'https://www.bibliapi.com/v2/biblias/desconocido/versiculos/jn/3/16';
+            
+            // Informar al usuario que se están cargando los datos
+            contenedor.innerHTML = '<p>Cargando...</p>';
+
+            try {
+                // 'fetch' es la función de JavaScript para hacer peticiones a URLs (APIs)
+                const respuesta = await fetch(url);
+
+                // Verificar si la respuesta del servidor fue exitosa (código 200)
+                if (!respuesta.ok) {
+                    throw new Error(`Error HTTP: ${respuesta.status}`);
+                }
+
+                // Convertir la respuesta a formato JSON, que es fácil de usar en JS
+                const datos = await respuesta.json();
+
+                // 4. Mostrar los datos en la página
+                // Accedemos a los datos según la estructura de la API
+                const textoDelVersiculo = datos.versiculos[0].texto;
+                const referencia = `${datos.libro.nombre} ${datos.capitulo}:${datos.versiculo}`;
+                
+                contenedor.innerHTML = `
+                    <h3>${referencia}</h3>
+                    <p>"${textoDelVersiculo}"</p>
+                `;
+
+            } catch (error) {
+                // Si algo sale mal (no hay internet, la API falla), mostramos un error
+                console.error('Error al obtener el versículo:', error);
+                contenedor.innerHTML = '<p>Lo sentimos, no se pudo cargar el versículo. Intenta de nuevo más tarde.</p>';
+            }
+        }
+    </script>
+
+</body>
+</html>
